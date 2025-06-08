@@ -19,190 +19,126 @@ public:
         optimization = (*config)("Bot", "Optimization");
     }
 
-    // Удалена реализация функции find_best_turns()
-    // Находит все возможные ходы (и взятия) для заданного цвета на текущем состоянии доски.
-    // color = true — для черных, false — для белых
+    // Находит лучший набор ходов с использованием минимакс-алгоритма
+    vector<move_pos> find_best_turns(const bool color)
+    {
+        int depth = Max_depth;
+        vector<vector<POS_T>> current = board->get_board();
+
+        vector<vector<POS_T>> best_mtx;
+        double best_score = INF;
+        vector<move_pos> best_turns;
+
+        find_best_turns_rec(current, color, depth, 0, best_score, best_turns);
+
+        return best_turns;
+    }
+
+    // Находит лучший первый ход (используется, когда не нужно искать всю серию)
+    move_pos find_first_best_turn(const bool color)
+    {
+        find_turns(color);
+        vector<move_pos> best;
+        double best_score = INF;
+
+        for (const auto& turn : turns)
+        {
+            vector<vector<POS_T>> mtx = make_turn(board->get_board(), turn);
+            double score = calc_score(mtx, color);
+
+            if (score < best_score)
+            {
+                best_score = score;
+                best.clear();
+                best.push_back(turn);
+            }
+            else if (score == best_score)
+            {
+                best.push_back(turn);
+            }
+        }
+
+        shuffle(best.begin(), best.end(), rand_eng);
+        return best[0];
+    }
+
+    // Рекурсивный минимакс-алгоритм для выбора лучшей последовательности ходов
+    void find_best_turns_rec(
+        vector<vector<POS_T>> mtx,
+        bool color,
+        int depth,
+        int beat_series,
+        double& best_score,
+        vector<move_pos>& best_turns)
+    {
+        if (depth == 0)
+        {
+            double score = calc_score(mtx, color);
+            if (score < best_score)
+            {
+                best_score = score;
+                best_turns.clear();
+            }
+            return;
+        }
+
+        vector<move_pos> local_turns;
+        bool have_beats_local = false;
+
+        find_turns(color, mtx);
+        local_turns = turns;
+        have_beats_local = have_beats;
+
+        for (const auto& turn : local_turns)
+        {
+            vector<vector<POS_T>> new_mtx = make_turn(mtx, turn);
+            double local_score = INF;
+            vector<move_pos> local_sequence;
+
+            find_best_turns_rec(new_mtx, !color, depth - 1, 0, local_score, local_sequence);
+
+            if (local_score < best_score)
+            {
+                best_score = local_score;
+                best_turns.clear();
+                best_turns.push_back(turn);
+                best_turns.insert(best_turns.end(), local_sequence.begin(), local_sequence.end());
+            }
+        }
+    }
+
     void find_turns(const bool color)
     {
         find_turns(color, board->get_board());
     }
-    // Находит все возможные продолжения взятия для фигуры, стоящей в клетке (x, y)
-    // Используется при выполнении серии ударов
+
     void find_turns(const POS_T x, const POS_T y)
     {
         find_turns(x, y, board->get_board());
     }
 
 public:
-    vector<move_pos> turns; // Список всех возможных ходов, найденных последним вызовом find_turns()
-    bool have_beats; // true, если среди возможных ходов есть взятия (обязательные ходы)
-    int Max_depth; // Максимальная глубина поиска в дереве ходов для ИИ (определяет уровень сложности)
-
-
-private:
-    // Удалена реализация функции find_first_best_turn()
-
-    // Удалена реализация функции find_best_turns_rec()
-    // Возвращает новое состояние доски после выполнения хода:
-    // 1. Если было взятие — удаляет побитую фигуру;
-    // 2. Проверяет, достиг ли игрок конца доски (становится дамкой);
-    // 3. Перемещает фигуру в новую позицию
-    vector<vector<POS_T>> make_turn(vector<vector<POS_T>> mtx, move_pos turn) const
-    {
-        if (turn.xb != -1)
-            mtx[turn.xb][turn.yb] = 0;
-        if ((mtx[turn.x][turn.y] == 1 && turn.x2 == 0) || (mtx[turn.x][turn.y] == 2 && turn.x2 == 7))
-            mtx[turn.x][turn.y] += 2;
-        mtx[turn.x2][turn.y2] = mtx[turn.x][turn.y];
-        mtx[turn.x][turn.y] = 0;
-        return mtx;
-    }
-    // Оценивает игровую позицию для ИИ (чем меньше значение, тем лучше позиция для first_bot_color).
-    // Учитываются количество обычных и дамочных фигур, а также потенциал продвижения.
-    // first_bot_color — цвет ИИ, которому нужно оценить позицию (true — черный)
-    double calc_score(const vector<vector<POS_T>>& mtx, const bool first_bot_color) const
-    {
-        double w = 0, wq = 0, b = 0, bq = 0;
-        for (POS_T i = 0; i < 8; ++i)
-        {
-            for (POS_T j = 0; j < 8; ++j)
-            {
-                w += (mtx[i][j] == 1);
-                wq += (mtx[i][j] == 3);
-                b += (mtx[i][j] == 2);
-                bq += (mtx[i][j] == 4);
-
-                if (scoring_mode == "NumberAndPotential")
-                {
-                    w += 0.05 * (mtx[i][j] == 1) * (7 - i);
-                    b += 0.05 * (mtx[i][j] == 2) * (i);
-                }
-            }
-        }
-
-        if (!first_bot_color)
-        {
-            swap(b, w);
-            swap(bq, wq);
-        }
-
-        if (w + wq == 0) return INF;
-        if (b + bq == 0) return 0;
-
-        int q_coef = (scoring_mode == "NumberAndPotential") ? 5 : 4;
-
-        return (b + bq * q_coef) / (w + wq * q_coef);
-    }
-    // Вспомогательная функция: ищет ходы в конкретной позиции (mtx), для всех фигур заданного цвета
-    void find_turns(const bool color, const vector<vector<POS_T>>& mtx)
-    {
-        vector<move_pos> res_turns;
-        bool have_beats_before = false;
-
-        for (POS_T i = 0; i < 8; ++i)
-        {
-            for (POS_T j = 0; j < 8; ++j)
-            {
-                if (mtx[i][j] && mtx[i][j] % 2 != color)
-                {
-                    find_turns(i, j, mtx);
-                    if (have_beats && !have_beats_before)
-                    {
-                        have_beats_before = true;
-                        res_turns.clear();
-                    }
-                    if ((have_beats_before && have_beats) || !have_beats_before)
-                    {
-                        res_turns.insert(res_turns.end(), turns.begin(), turns.end());
-                    }
-                }
-            }
-        }
-
-        turns = res_turns;
-        shuffle(turns.begin(), turns.end(), rand_eng);
-        have_beats = have_beats_before;
-    }
-    // Вспомогательная функция: ищет ходы для одной фигуры в заданной клетке (x, y) в конкретной позиции (mtx)
-    void find_turns(const POS_T x, const POS_T y, const vector<vector<POS_T>>& mtx)
-    {
-        turns.clear();
-        have_beats = false;
-        POS_T type = mtx[x][y];
-
-        switch (type)
-        {
-        case 1: case 2:
-            for (POS_T i = x - 2; i <= x + 2; i += 4)
-                for (POS_T j = y - 2; j <= y + 2; j += 4)
-                {
-                    if (i < 0 || i > 7 || j < 0 || j > 7) continue;
-                    POS_T xb = (x + i) / 2, yb = (y + j) / 2;
-                    if (mtx[i][j] || !mtx[xb][yb] || mtx[xb][yb] % 2 == type % 2)
-                        continue;
-                    turns.emplace_back(x, y, i, j, xb, yb);
-                }
-            break;
-
-        default:
-            for (POS_T i = -1; i <= 1; i += 2)
-                for (POS_T j = -1; j <= 1; j += 2)
-                {
-                    POS_T xb = -1, yb = -1;
-                    for (POS_T i2 = x + i, j2 = y + j; i2 != 8 && j2 != 8 && i2 != -1 && j2 != -1; i2 += i, j2 += j)
-                    {
-                        if (mtx[i2][j2])
-                        {
-                            if (mtx[i2][j2] % 2 == type % 2 || (xb != -1))
-                                break;
-                            xb = i2;
-                            yb = j2;
-                        }
-                        if (xb != -1 && xb != i2)
-                            turns.emplace_back(x, y, i2, j2, xb, yb);
-                    }
-                }
-            break;
-        }
-
-        if (!turns.empty())
-        {
-            have_beats = true;
-            return;
-        }
-
-        switch (type)
-        {
-        case 1: case 2:
-        {
-            POS_T i = ((type % 2) ? x - 1 : x + 1);
-            for (POS_T j = y - 1; j <= y + 1; j += 2)
-                if (i >= 0 && i <= 7 && j >= 0 && j <= 7 && !mtx[i][j])
-                    turns.emplace_back(x, y, i, j);
-            break;
-        }
-        default:
-            for (POS_T i = -1; i <= 1; i += 2)
-                for (POS_T j = -1; j <= 1; j += 2)
-                    for (POS_T i2 = x + i, j2 = y + j; i2 != 8 && j2 != 8 && i2 != -1 && j2 != -1; i2 += i, j2 += j)
-                    {
-                        if (mtx[i2][j2]) break;
-                        turns.emplace_back(x, y, i2, j2);
-                    }
-            break;
-        }
-    }
+    vector<move_pos> turns; // Список возможных ходов
+    bool have_beats;        // Наличие взятий
+    int Max_depth;          // Глубина поиска для ИИ
 
 private:
-    default_random_engine rand_eng; // Генератор случайных чисел для перемешивания ходов (чтобы бот не действовал шаблонно)
-    string scoring_mode; // Режим оценки позиции: например, "NumberAndPotential" учитывает не только количество, но и потенциальное продвижение
-    string optimization; // Уровень или тип оптимизации (пока не используется, но предусмотрено для расширения функционала)
+    vector<vector<POS_T>> make_turn(vector<vector<POS_T>> mtx, move_pos turn) const;
 
-    // Используются для хранения лучшего хода или состояния на следующем уровне в дереве решений (для ИИ)
-    vector<move_pos> next_move;
-    vector<int> next_best_state;
+    double calc_score(const vector<vector<POS_T>>& mtx, const bool first_bot_color) const;
 
-    Board* board;   // Указатель на объект доски, предоставляет доступ к текущему положению фигур
-    Config* config; // Указатель на конфигурацию игры, используется для чтения настроек ИИ, размера окна и т.д.
+    void find_turns(const bool color, const vector<vector<POS_T>>& mtx);
 
+    void find_turns(const POS_T x, const POS_T y, const vector<vector<POS_T>>& mtx);
+
+private:
+    default_random_engine rand_eng; // Генератор случайных чисел
+    string scoring_mode;            // Метод оценки позиции
+    string optimization;            // Режим оптимизации
+
+    vector<move_pos> next_move;     // Следующий ход для ИИ
+    vector<int> next_best_state;    // Состояния для анализа
+
+    Board* board;                   // Указатель на доску
+    Config* config;                 // Указатель на настройки
 };

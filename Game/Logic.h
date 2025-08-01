@@ -1,4 +1,4 @@
-#pragma once
+п»ї#pragma once
 #include <random>
 #include <vector>
 #include "../Models/Move.h"
@@ -19,7 +19,7 @@ public:
         optimization = (*config)("Bot", "Optimization");
     }
 
-    // Находит лучший набор ходов с использованием минимакс-алгоритма
+    // РќР°С…РѕРґРёС‚ Р»СѓС‡С€РёР№ РЅР°Р±РѕСЂ С…РѕРґРѕРІ СЃ РёСЃРїРѕР»СЊР·РѕРІР°РЅРёРµРј РјРёРЅРёРјР°РєСЃ-Р°Р»РіРѕСЂРёС‚РјР°
     vector<move_pos> find_best_turns(const bool color)
     {
         int depth = Max_depth;
@@ -34,7 +34,7 @@ public:
         return best_turns;
     }
 
-    // Находит лучший первый ход (используется, когда не нужно искать всю серию)
+    // РќР°С…РѕРґРёС‚ Р»СѓС‡С€РёР№ РїРµСЂРІС‹Р№ С…РѕРґ (РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ, РєРѕРіРґР° РЅРµ РЅСѓР¶РЅРѕ РёСЃРєР°С‚СЊ РІСЃСЋ СЃРµСЂРёСЋ)
     move_pos find_first_best_turn(const bool color)
     {
         find_turns(color);
@@ -62,7 +62,7 @@ public:
         return best[0];
     }
 
-    // Рекурсивный минимакс-алгоритм для выбора лучшей последовательности ходов
+    // Р РµРєСѓСЂСЃРёРІРЅС‹Р№ РјРёРЅРёРјР°РєСЃ-Р°Р»РіРѕСЂРёС‚Рј РґР»СЏ РІС‹Р±РѕСЂР° Р»СѓС‡С€РµР№ РїРѕСЃР»РµРґРѕРІР°С‚РµР»СЊРЅРѕСЃС‚Рё С…РѕРґРѕРІ
     void find_best_turns_rec(
         vector<vector<POS_T>> mtx,
         bool color,
@@ -118,9 +118,9 @@ public:
     }
 
 public:
-    vector<move_pos> turns; // Список возможных ходов
-    bool have_beats;        // Наличие взятий
-    int Max_depth;          // Глубина поиска для ИИ
+    vector<move_pos> turns; // РЎРїРёСЃРѕРє РІРѕР·РјРѕР¶РЅС‹С… С…РѕРґРѕРІ
+    bool have_beats;        // РќР°Р»РёС‡РёРµ РІР·СЏС‚РёР№
+    int Max_depth;          // Р“Р»СѓР±РёРЅР° РїРѕРёСЃРєР° РґР»СЏ РР
 
 private:
     vector<vector<POS_T>> make_turn(vector<vector<POS_T>> mtx, move_pos turn) const;
@@ -132,13 +132,13 @@ private:
     void find_turns(const POS_T x, const POS_T y, const vector<vector<POS_T>>& mtx);
 
 private:
-    default_random_engine rand_eng; // Генератор случайных чисел
-    string scoring_mode;            // Метод оценки позиции
-    string optimization;            // Режим оптимизации
+    default_random_engine rand_eng; // Р“РµРЅРµСЂР°С‚РѕСЂ СЃР»СѓС‡Р°Р№РЅС‹С… С‡РёСЃРµР»
+    string scoring_mode;            // РњРµС‚РѕРґ РѕС†РµРЅРєРё РїРѕР·РёС†РёРё
+    string optimization;            // Р РµР¶РёРј РѕРїС‚РёРјРёР·Р°С†РёРё
 
-    vector<move_pos> next_move;     // Следующий ход для ИИ
-    vector<int> next_best_state;    // Состояния для анализа
+    vector<move_pos> next_move;     // РЎР»РµРґСѓСЋС‰РёР№ С…РѕРґ РґР»СЏ РР
+    vector<int> next_best_state;    // РЎРѕСЃС‚РѕСЏРЅРёСЏ РґР»СЏ Р°РЅР°Р»РёР·Р°
 
-    Board* board;                   // Указатель на доску
-    Config* config;                 // Указатель на настройки
+    Board* board;                   // РЈРєР°Р·Р°С‚РµР»СЊ РЅР° РґРѕСЃРєСѓ
+    Config* config;                 // РЈРєР°Р·Р°С‚РµР»СЊ РЅР° РЅР°СЃС‚СЂРѕР№РєРё
 };
